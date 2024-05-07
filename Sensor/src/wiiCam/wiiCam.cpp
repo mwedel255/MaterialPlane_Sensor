@@ -46,10 +46,61 @@ void wiiCam::setFramePeriod(float period){
   _framePeriod = period;
 }
 
+// Useful values on wiicam seem to be from about 10 to
+// 90, so no need to try to compute values between 1
+// and 255.  Values less than 12 results in no
+// reading either, so keep brightness in detectable range.
+// There are big jumps - with testing with DIY LED, sensitity
+// of 100 is ~70 brightness, 99 is ~40, 98 is ~30,
+// and 90 is ~16, and the change slows down more
+// with lower values.
+//
+// This is based on http://wiibrew.org/wiki/Wiimote#IR_Camera,
+// The max sensitivity there has sb1[8] set to 0x0C (12),
+// which matches with observation noted above.
+//
+// Other values in the sb1 block did not result in any change
+// in behavior with testing - only one of note is
+// sb1[6] which if set too low results in the camera
+// not detecting any IR sources, and it being
+// 0x20 results in IR source popping in and out but
+// with same brightness as if set with other values.
+// Perhaps sensitivity related in some way.  0x90
+// chosen here as something basically in the middle
+// of usable values.  The test environment was not noisy,
+// so unable to experiment with different values here
+// to see what may work better.
+//
+// Unclear what exactly the sb2 values are used for -
+// it must be less than sb1[8], but playing with
+// different values resulted in no difference in
+// noise or brightness levels.
 void wiiCam::setSensitivity(uint8_t val) {
-  uint8_t brightness = 268*pow(0.95, val);
-  writeRegister(BRIGHTNESS_1, brightness);
-  writeRegister(BRIGHTNESS_2, brightness);
+  uint8_t brightness = 112 - val;
+  uint8_t sb1[9] = {0x02, 0x00, 0x00, 0x71, 0x01, 0x00, 0x90, 0x00, 0xff}, sb2[2] = {0x00, 0x00};
+
+  sb1[8] = brightness;
+  sb2[0] = brightness - 1;
+
+  Wire.beginTransmission(IR_ADDRESS);
+  Wire.write(SENSITIVITY_BLOCK1);
+  for (int i=0; i<9; i++)
+      Wire.write(sb1[i]);
+  Wire.endTransmission();
+  delay(10);
+
+  Wire.beginTransmission(IR_ADDRESS);
+  Wire.write(MAX_BRIGHTNESS);
+  Wire.write(sb2[0]);
+  Wire.write(sb2[1]);
+  Wire.endTransmission();
+  delay(10);
+
+  Wire.beginTransmission(IR_ADDRESS);
+  Wire.write(CONFIG);
+  Wire.write(0x08);
+  Wire.endTransmission();
+  delay(10);
 }
 
 void wiiCam::setPixelBrightnessThreshold(uint8_t value){

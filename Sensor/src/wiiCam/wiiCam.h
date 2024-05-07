@@ -5,6 +5,7 @@
 #include "../IrPoint/IrPoint.h"
 
 //Registers
+#define SENSITIVITY_BLOCK1  0x00
 #define MAX_BRIGHTNESS_THR  0x06
 #define BRIGHTNESS_1        0x08
 #define MAX_OBJECTS         0x10
